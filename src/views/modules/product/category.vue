@@ -1,7 +1,8 @@
 <template>
   <div>
+    <el-button type="danger" @click="deleteBatch">批量删除</el-button>
     <el-tree :data="category" :props="defaultProps" show-checkbox node-key="catId" :expand-on-click-node="false"
-      :default-expanded-keys="expandkey" draggable :allow-drop="allowDrop">
+      :default-expanded-keys="expandkey" :draggable="false" :allow-drop="allowDrop" ref="tree">
 
       <span class="custom-tree-node" slot-scope="{ node, data }">
         <span>{{ node.label }}</span>
@@ -68,6 +69,44 @@ export default {
         // console.log(data.data)
       })
     },
+    deleteBatch() {
+      let catIds = []
+      let checkedNodes = this.$refs.tree.getCheckedNodes()
+      for (let i = 0; i < checkedNodes.length; i++) {
+        catIds.push(checkedNodes[i].catId)
+      }
+
+      this.$confirm(`此操作将永久删除所选分类, 是否继续?`, '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(() => {
+        this.$http({
+          url: this.$http.adornUrl('/product/category/delete/batch'),
+          method: 'post',
+          data: this.$http.adornData(catIds, false)
+        }).then(({ data }) => {
+          if (data && data.code === 0) {
+            this.$message({
+              message: '批量删除成功',
+              type: 'success',
+              duration: 1000,
+              onClose: () => {
+              }
+            })
+          } else {
+            this.$message.error(data.msg)
+          }
+          // 刷新Category
+          this.getCategoryTree()
+        })
+      }).catch(() => {
+        this.$message({
+          type: 'info',
+          message: '已取消删除'
+        })
+      })
+    },
     allowDrop(draggingNode, dropNode, type) {
       // console.log(draggingNode, dropNode, type)
       this.maxLevel = 0
@@ -75,16 +114,16 @@ export default {
       this.getDeepth(draggingNode.data)
       // 拖拽节点的最大深度
       let deepth = this.maxLevel - draggingNode.data.catLevel + 1
-      if(type=='inner'){
+      if (type == 'inner') {
         return (deepth + dropNode.data.catLevel) < 3
-      }else{
+      } else {
         return (deepth + dropNode.data.parentCid) <= 3
       }
     },
-    getDeepth(node){
-      if(node.children != null && node.children.length > 0){
-        for(let i = 0; i < node.children.length; i++){
-          if(node.children[i].catLevel > this.maxLevel){
+    getDeepth(node) {
+      if (node.children != null && node.children.length > 0) {
+        for (let i = 0; i < node.children.length; i++) {
+          if (node.children[i].catLevel > this.maxLevel) {
             this.maxLevel = node.children[i].catLevel
           }
           this.getDeepth(node.children[i])
